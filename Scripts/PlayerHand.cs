@@ -66,8 +66,31 @@ public class PlayerHand : MonoBehaviour
                     Mathf.FloorToInt(hit.point.z + hit.normal.z * 0.5f)
                 );
 
-                // Call World.RemoveBoxAtPosition with the rounded block coordinates
-                World.Instance.RemoveBoxAtPosition((int)blockPosition.x, (int)blockPosition.y - 1, (int)blockPosition.z);
+                if (faceIndex == 0)
+                {
+                    // Call World.RemoveBoxAtPosition with the rounded block coordinates
+                    World.Instance.RemoveBoxAtPosition((int)blockPosition.x, (int)blockPosition.y - 1, (int)blockPosition.z);
+                }
+                else if (faceIndex == 2)
+                {
+                    World.Instance.RemoveBoxAtPosition((int)blockPosition.x + 1, (int)blockPosition.y, (int)blockPosition.z);
+                }
+                else if (faceIndex == 3)
+                {
+                    World.Instance.RemoveBoxAtPosition((int)blockPosition.x - 1, (int)blockPosition.y, (int)blockPosition.z);
+                }
+                else if (faceIndex == 4)
+                {
+                    World.Instance.RemoveBoxAtPosition((int)blockPosition.x, (int)blockPosition.y, (int)blockPosition.z - 1);
+                }
+                else if(faceIndex == 5)
+                {
+                    World.Instance.RemoveBoxAtPosition((int)blockPosition.x, (int)blockPosition.y, (int)blockPosition.z + 1);
+                }
+                else
+                {
+                    Debug.Log("No implementation for face 1");
+                }
             }
         }
     }
