@@ -1,23 +1,22 @@
 using TreeEditor;
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class PlayerHand : MonoBehaviour
 {
 
-    public Camera playerCamera; // Reference to the player's camera
-    public float maxRayDistance = 100f; // Max distance the ray can travel
-    public Material redMaterial;  // The red material
-    public Material greenMaterial; // The green material
+    public Camera playerCamera;
+    public float maxRayDistance = 100f;
+    public Material redMaterial;
+    public Material greenMaterial;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+
     void Start()
     {
-
         
     }
 
-    // Update is called once per frame
     void Update()
     {
         HandleBlockSelection();
@@ -25,119 +24,103 @@ public class PlayerHand : MonoBehaviour
     }
     void HandleBlockSelection()
     {
-        // Check for LMB click
+        // MOUSE LEFT CLICK
+        int xOffset = 0;
         if (Input.GetMouseButtonDown(0))
         {
-            // Cast a ray from the center of the screen (camera)
             Ray ray = playerCamera.ScreenPointToRay(new Vector3(Screen.width / 2, Screen.height / 2, 0));
             RaycastHit hit;
 
-            // Check if the ray hits something
             if (Physics.Raycast(ray, out hit, maxRayDistance))
             {
-                // Round the hit point to the nearest block center
-                Vector3 blockPosition = new Vector3(
-                    Mathf.FloorToInt(hit.point.x + hit.normal.x * 0.5f),
-                    Mathf.FloorToInt(hit.point.y + hit.normal.y * 0.5f),
-                    Mathf.FloorToInt(hit.point.z + hit.normal.z * 0.5f)
-                );
+                // Round the hit point to a block cords (nearest)
 
-                // Call World.AddBoxAtPosition with the rounded block coordinates
-                World.Instance.AddBoxAtPosition((int)blockPosition.x, (int)blockPosition.y, (int)blockPosition.z);
-            }
-        }
-        else if (Input.GetMouseButtonDown(1))
-        {
-            // Cast a ray from the center of the screen (camera)
-            Ray ray = playerCamera.ScreenPointToRay(new Vector3(Screen.width / 2, Screen.height / 2, 0));
-            RaycastHit hit;
-
-            // Check if the ray hits something
-            if (Physics.Raycast(ray, out hit, maxRayDistance))
-            {
-                // Call the function to identify which face of the cube was clicked
                 int faceIndex = GetClickedFace(hit);
                 Debug.Log("Face clicked: " + faceIndex);
 
-                // Round the hit point to the nearest block center
                 Vector3 blockPosition = new Vector3(
                     Mathf.FloorToInt(hit.point.x + hit.normal.x * 0.5f),
                     Mathf.FloorToInt(hit.point.y + hit.normal.y * 0.5f),
                     Mathf.FloorToInt(hit.point.z + hit.normal.z * 0.5f)
                 );
 
-                if (faceIndex == 0)
+                if (World.Instance.IsVoxelActiveAtPosition((int)blockPosition.x - 1, (int)blockPosition.y, (int)blockPosition.z) == true ||
+                    World.Instance.IsVoxelActiveAtPosition((int)blockPosition.x - 3, (int)blockPosition.y, (int)blockPosition.z) == true)
                 {
-                    // Call World.RemoveBoxAtPosition with the rounded block coordinates
-                    World.Instance.RemoveBoxAtPosition((int)blockPosition.x, (int)blockPosition.y - 1, (int)blockPosition.z);
+                    xOffset += 1;
                 }
-                else if (faceIndex == 2)
+
+                if (World.Instance.IsVoxelActiveAtPosition((int)blockPosition.x + 1, (int)blockPosition.y, (int)blockPosition.z) == true ||
+                    World.Instance.IsVoxelActiveAtPosition((int)blockPosition.x + 3, (int)blockPosition.y, (int)blockPosition.z) == true)
                 {
-                    World.Instance.RemoveBoxAtPosition((int)blockPosition.x + 1, (int)blockPosition.y, (int)blockPosition.z);
+                    xOffset += -1;
                 }
-                else if (faceIndex == 3)
+
+                World.Instance.AddBoxAtPosition((int)blockPosition.x + xOffset, (int)blockPosition.y, (int)blockPosition.z);
+            }
+        }
+        // MOUSE RIGHT CLICK
+        else if (Input.GetMouseButtonDown(1))
+        {
+            Ray ray = playerCamera.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+
+            if (Physics.Raycast(ray, out hit, maxRayDistance))
+            {
+                Chunk chunk = hit.collider.GetComponent<Chunk>();
+                if (chunk != null)
                 {
-                    World.Instance.RemoveBoxAtPosition((int)blockPosition.x - 1, (int)blockPosition.y, (int)blockPosition.z);
-                }
-                else if (faceIndex == 4)
-                {
-                    World.Instance.RemoveBoxAtPosition((int)blockPosition.x, (int)blockPosition.y, (int)blockPosition.z - 1);
-                }
-                else if(faceIndex == 5)
-                {
-                    World.Instance.RemoveBoxAtPosition((int)blockPosition.x, (int)blockPosition.y, (int)blockPosition.z + 1);
-                }
-                else
-                {
-                    Debug.Log("No implementation for face 1");
+                    int triangleIndex = hit.triangleIndex;
+                    Vector3 blockPosition = chunk.GetVoxelPositionFromTriangleIndex(triangleIndex);
+                    World.Instance.RemoveBoxAtPosition((int)blockPosition.x, (int)blockPosition.y, (int)blockPosition.z);
                 }
             }
         }
     }
     int GetClickedFace(RaycastHit hit)
     {
-        // hit.normal will tell us the face that was hit
-        Vector3 normal = hit.normal;
+        Vector3 normal = hit.normal.normalized;
 
-        // Check which axis is most aligned with the normal
-        if (normal == Vector3.up)
+        // Define the custom face normals
+        Vector3 leftFaceNormal = new Vector3(0, 0, 1);           // Left Face
+        Vector3 rightFaceNormal = new Vector3(0, 0, -1);         // Right Face
+        Vector3 topFaceNormal = new Vector3(0, 1, 0);            // Top Face
+        Vector3 backFaceNormal = new Vector3(-0.71f, 0.71f, 0);  // Back Face
+        Vector3 frontFaceNormal = new Vector3(0.71f, -0.71f, 0); // Front Face
+
+        // Set a threshold for similarity to account for potential floating-point variations
+        float threshold = 0.9f;
+
+        // Determine which face was clicked by comparing the normal with each face's normal
+        if (Vector3.Dot(normal, leftFaceNormal) > threshold)
         {
-            return 0; // Top face
+            return 2; // Left Face
         }
-        else if (normal == Vector3.down)
+        if (Vector3.Dot(normal, rightFaceNormal) > threshold)
         {
-            return 1; // Bottom face
+            return 3; // Right Face
         }
-        else if (normal == Vector3.left)
+        if (Vector3.Dot(normal, topFaceNormal) > threshold)
         {
-            return 2; // Left face
+            return 0; // Top Face
         }
-        else if (normal == Vector3.right)
+        if (Vector3.Dot(normal, backFaceNormal) > threshold)
         {
-            return 3; // Right face
+            return 5; // Back Face
         }
-        else if (normal == Vector3.forward)
+        if (Vector3.Dot(normal, frontFaceNormal) > threshold)
         {
-            return 4; // Front face
-        }
-        else if (normal == Vector3.back)
-        {
-            return 5; // Back face
+            return 4; // Front Face
         }
 
-        // Default case (shouldn't happen, but we return -1 in case it does)
+        // Return -1 if no face matches
         return -1;
     }
 
     IEnumerator ChangeBlockMaterial(Renderer blockRenderer)
     {
-        // Change the material to red
         blockRenderer.material = redMaterial;
-
-        // Wait for 2 seconds
         yield return new WaitForSeconds(2);
-
-        // Change the material back to green
         blockRenderer.material = greenMaterial;
     }
 }

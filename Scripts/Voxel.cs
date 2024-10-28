@@ -1,6 +1,4 @@
 using UnityEngine;
-
-// Define a simple Voxel struct
 public struct Voxel
 {
     public Vector3 position;
